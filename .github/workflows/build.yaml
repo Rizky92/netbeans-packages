@@ -3,6 +3,9 @@ name: Build
 on:
   workflow_dispatch:
     inputs:
+      release-tag:
+        description: 'Release to upload to (optional)'
+        type: string
       build-deb-x64:
         description: 'Build Linux .deb for x86_64'
         type: boolean
@@ -33,6 +36,17 @@ jobs:
         uses: actions/checkout@v5
         with:
           persist-credentials: false
+      - name: Validate release tag
+        if: ${{ inputs.release-tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        run: |
+          if ! gh release view "${RELEASE_TAG}" &> /dev/null;
+            then
+              echo "Release ${RELEASE_TAG} does not exist"
+              exit 1
+          fi
       - name: Setup JDK
         uses: actions/setup-java@v5
         with:
@@ -72,13 +86,23 @@ jobs:
         env:
           DPKG_DEB_COMPRESSOR_TYPE: xz
         run: java Exec.java build linux x64 deb
-      - name: Upload
+      - name: Upload to workflow
+        if: ${{ ! inputs.release-tag }}
         uses: actions/upload-artifact@v5
         with:
           name: linux-deb-x64
           path: |
             dist/*.deb
             dist/*.deb.sha*
+      - name: Upload to release
+        if: ${{ inputs.release-tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        working-directory: ./dist
+        run: |
+          cat *.deb.sha*
+          gh release upload "${RELEASE_TAG}" *.deb
 
   build-deb-arm:
     name: Build Linux .deb for aarch64
@@ -105,13 +129,23 @@ jobs:
         env:
           DPKG_DEB_COMPRESSOR_TYPE: xz
         run: java Exec.java build linux arm deb
-      - name: Upload
+      - name: Upload to workflow
+        if: ${{ ! inputs.release-tag }}
         uses: actions/upload-artifact@v5
         with:
           name: linux-deb-aarch64
           path: |
             dist/*.deb
             dist/*.deb.sha*
+      - name: Upload to release
+        if: ${{ inputs.release-tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        working-directory: ./dist
+        run: |
+          cat *.deb.sha*
+          gh release upload "${RELEASE_TAG}" *.deb
 
   build-rpm-x64:
     name: Build Linux .rpm for x86_64
@@ -140,13 +174,23 @@ jobs:
           sudo apt install rpm
       - name: Build
         run: java Exec.java build linux x64 rpm
-      - name: Upload
+      - name: Upload to workflow
+        if: ${{ ! inputs.release-tag }}
         uses: actions/upload-artifact@v5
         with:
           name: linux-rpm-x64
           path: |
             dist/*.rpm
             dist/*.rpm.sha*
+      - name: Upload to release
+        if: ${{ inputs.release-tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        working-directory: ./dist
+        run: |
+          cat *.rpm.sha*
+          gh release upload "${RELEASE_TAG}" *.rpm
 
   build-windows-x64:
     name: Build Windows .exe for x86_64
@@ -198,13 +242,24 @@ jobs:
           echo "Previous hash : " $(cat ${EXE}.sha256)
           sha256sum ${EXE} > ${EXE}.sha256
           echo "Updated hash : " $(cat ${EXE}.sha256)
-      - name: Upload
+      - name: Upload to workflow
+        if: ${{ ! inputs.release-tag }}
         uses: actions/upload-artifact@v5
         with:
           name: windows-exe-x64
           path: |
             dist/*.exe
             dist/*.exe.sha*
+      - name: Upload to release
+        if: ${{ inputs.release-tag }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        working-directory: ./dist
+        run: |
+          cat *.exe.sha*
+          gh release upload "${RELEASE_TAG}" *.exe
 
   build-macos-arm:
     name: Build macOS .pkg for aarch64
@@ -258,13 +313,23 @@ jobs:
           APP_CERT_ID: ${{ vars.APP_CERT_ID }}
           INST_CERT_ID: ${{ vars.INST_CERT_ID }}
         run: java Exec.java build macos arm pkg
-      - name: Upload
+      - name: Upload to workflow
+        if: ${{ ! inputs.release-tag }}
         uses: actions/upload-artifact@v5
         with:
           name: macos-pkg-aarch64
           path: |
             dist/*.pkg
             dist/*.pkg.sha*
+      - name: Upload to release
+        if: ${{ inputs.release-tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        working-directory: ./dist
+        run: |
+          cat *.pkg.sha*
+          gh release upload "${RELEASE_TAG}" *.pkg
 
   build-macos-x64:
     name: Build macOS .pkg for x86_64
@@ -318,10 +383,20 @@ jobs:
           APP_CERT_ID: ${{ vars.APP_CERT_ID }}
           INST_CERT_ID: ${{ vars.INST_CERT_ID }}
         run: java Exec.java build macos x64 pkg
-      - name: Upload
+      - name: Upload to workflow
+        if: ${{ ! inputs.release-tag }}
         uses: actions/upload-artifact@v5
         with:
           name: macos-pkg-x64
           path: |
             dist/*.pkg
             dist/*.pkg.sha*
+      - name: Upload to release
+        if: ${{ inputs.release-tag }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        working-directory: ./dist
+        run: |
+          cat *.pkg.sha*
+          gh release upload "${RELEASE_TAG}" *.pkg

@@ -20,8 +20,11 @@ The workflow uses the `Exec.java` single source file to download and verify the
 required files, as well as to configure and execute NBPackage. All downloads are
 verified against the hashes provided in the `build.properties` file.
 
-At the end of the workflow run, each built installer can be found in a zip file
-on the workflow output page.
+If a release tag is provided when triggering the workflow, installers will be
+uploaded to this release. If no release tag is provided, the installers will be
+uploaded as workflow artefacts, and can be found in zip files on the workflow
+output page. Any release tag must correspond to an already created release,
+although this may be in draft form.
 
 ## Code signing and secrets
 
