@@ -53,7 +53,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -77,7 +77,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -120,7 +120,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -163,7 +163,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -208,7 +208,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -280,7 +280,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -350,7 +350,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
