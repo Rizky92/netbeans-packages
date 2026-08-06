@@ -6,19 +6,67 @@ reused for building packages of NetBeans bundled with a JDK runtime of choice.
 
 ## Build
 
-Links and hashes of Apache NetBeans, the bundled JDK runtimes, and the
+Apache NetBeans releases on GitHub ship source only, so NetBeans is built from
+source as part of the package build. Links and hashes of the NetBeans source
+release, the bundled JDK runtimes, and the
 [NBPackage](https://github.com/apache/netbeans-nbpackage/) tool are configured
 in the `build.properties` file. This file also contains the version number to
-write into each package. Other configuration for individual packages is
-included in the `config` files passed in to NBPackage.
+write into each package, and the NetBeans cluster configuration to build. Other
+configuration for individual packages is included in the `config` files passed
+in to NBPackage.
 
 Packages are built using the workflow at `.github/workflows/build.yaml`. This
 workflow is triggered manually from the `Actions/Build` page using the
 `Run workflow` button and selecting the required packages.
 
+NetBeans itself is platform independent, so it is built once by the
+`Build NetBeans from source` job and shared with each of the package jobs as a
+workflow artefact. The build takes considerably longer than packaging, so its
+output is cached against the contents of `Exec.java` and `build.properties` -
+repeat runs against unchanged configuration reuse the cached distribution
+instead of building again.
+
 The workflow uses the `Exec.java` single source file to download and verify the
-required files, as well as to configure and execute NBPackage. All downloads are
-verified against the hashes provided in the `build.properties` file.
+required files, to build NetBeans from source with
+[Apache Ant](https://ant.apache.org/), and to configure and execute NBPackage.
+All downloads are verified against the hashes provided in the `build.properties`
+file.
+
+### Building locally
+
+Building requires JDK 21 or above, and Ant on the path (or `ANT_HOME` /
+`ANT_PATH` set). To validate the configuration, build NetBeans from source, and
+then build a package -
+
+```
+java Exec.java validate
+java Exec.java build-netbeans
+java Exec.java build <os> <arch> <package-type>
+```
+
+The source release is extracted to `nbsrc` and built there. The resulting
+NetBeans distribution is written to `nbdist`, from where `build` picks it up.
+Delete `nbsrc` to force a clean rebuild - `build-netbeans` reuses the directory
+if it already exists.
+
+Note that the NetBeans sources contain paths of up to 245 characters, so
+extracting them on Windows requires either long path support to be enabled or a
+short working directory. The workflow builds NetBeans on Linux.
+
+### Updating the NetBeans version
+
+Set `netbeans.version` to the version to write into the packages, and point
+`netbeans.source.url` at the source archive of the matching tag on the
+[Apache NetBeans releases page](https://github.com/apache/netbeans/releases).
+The hash for `netbeans.source.sha` can be generated with -
+
+```
+curl -L <url> | sha512sum
+```
+
+Note that the version is also used as the build number of the NetBeans build,
+as the source archive does not include the VCS metadata the NetBeans build
+otherwise derives it from.
 
 If a release tag is provided when triggering the workflow, installers will be
 uploaded to this release. If no release tag is provided, the installers will be
