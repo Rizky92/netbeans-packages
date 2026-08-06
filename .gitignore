@@ -1,6 +1,8 @@
 cache/
 dist/
+nbdist/
 nbpackage/
+nbsrc/
 
 *.tar.gz
 *.zip

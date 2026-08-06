@@ -28,16 +28,24 @@ import java.util.stream.*;
  *
  * Usage -
  *
- * java Exec.java build os arch package-type java Exec.java
- * validate(|-downloads|-cache)
+ * <pre>
+ * java Exec.java build &lt;os&gt; &lt;arch&gt; &lt;package-type&gt;
+ * java Exec.java build-netbeans
+ * java Exec.java validate(|-downloads|-cache)
+ * </pre>
  *
  */
 public class Exec {
 
     private static final String COMMAND_BUILD = "build";
+    private static final String COMMAND_BUILD_NETBEANS = "build-netbeans";
     private static final String COMMAND_VALIDATE = "validate";
     private static final String COMMAND_VALIDATE_DOWNLOADS = "validate-downloads";
     private static final String COMMAND_VALIDATE_CACHE = "validate-cache";
+
+    private static final String NETBEANS_SOURCE_DIR = "nbsrc";
+    private static final String NETBEANS_DIST_DIR = "nbdist";
+    private static final String DEFAULT_CLUSTER_CONFIG = "release";
 
     private final Path workingDir, cacheDir;
     private final Properties config;
@@ -60,10 +68,7 @@ public class Exec {
 
     void build() throws Exception {
 
-        String version = config.getProperty("netbeans.version", "");
-        if (version.isBlank()) {
-            throw new IllegalStateException("NetBeans version not set");
-        }
+        String version = version();
 
         if (type.equals("innosetup") && System.getenv("INNOSETUP_PATH") == null) {
             throw new IllegalStateException("Environment variable with InnoSetup path not found");
@@ -73,26 +78,45 @@ public class Exec {
         Path pkgConfig = workingDir.resolve("config")
                 .resolve(os + "-" + arch + "-" + type + ".properties");
         Path jdk = resource("jdk." + os + "." + arch);
-        Path netbeans = resource("netbeans");
+        Path netbeans = netbeansDistribution();
         Path dist = Files.createDirectories(workingDir.resolve("dist"));
 
         List<String> cmd = buildNBPackageCommandLine(
                 nbpackage, netbeans, pkgConfig, dist, jdk, version);
 
         System.out.println("Running NBPackage\n -- " + cmd);
-        ProcessBuilder pb = new ProcessBuilder(cmd);
-        pb.inheritIO();
-        pb.start().waitFor();
+        execute(cmd, null);
 
         processAndHashOutput(dist);
 
     }
 
+    void buildNetBeans() throws Exception {
+
+        String version = version();
+        String clusterConfig = clusterConfig();
+
+        Path source = configureNetBeansSource();
+        Path dist = Files.createDirectories(workingDir.resolve(NETBEANS_DIST_DIR));
+
+        List<String> cmd = buildAntCommandLine(clusterConfig, version);
+
+        System.out.println("Building NetBeans from source\n -- " + cmd);
+        execute(cmd, source);
+
+        Path built = findFile(source.resolve("nbbuild"),
+                "NetBeans-*-" + clusterConfig + ".zip");
+        Path result = dist.resolve("netbeans-" + version + "-bin.zip");
+        Files.copy(built, result, StandardCopyOption.REPLACE_EXISTING);
+
+        System.out.println("Built NetBeans distribution : " + result.getFileName());
+        System.out.println("SHA-512 : " + Hash.SHA512.hashFile(result));
+
+    }
+
     void validate(boolean downloads) throws Exception {
-        String version = config.getProperty("netbeans.version", "");
-        if (version.isBlank()) {
-            throw new IllegalArgumentException("NetBeans version not set");
-        }
+        version();
+        clusterConfig();
         List<String> resources = config.keySet().stream()
                 .map(Object::toString)
                 .filter(k -> k.endsWith(".url"))
@@ -124,7 +148,23 @@ public class Exec {
 
     void warmCache() throws Exception {
         resource("nbpackage");
-        resource("netbeans");
+    }
+
+    String version() {
+        String version = config.getProperty("netbeans.version", "").trim();
+        if (version.isBlank()) {
+            throw new IllegalArgumentException("NetBeans version not set");
+        }
+        return version;
+    }
+
+    String clusterConfig() {
+        String clusterConfig = config.getProperty("netbeans.cluster.config",
+                DEFAULT_CLUSTER_CONFIG).trim();
+        if (clusterConfig.isBlank()) {
+            throw new IllegalArgumentException("NetBeans cluster config not set");
+        }
+        return clusterConfig;
     }
 
     Path resource(String id) throws Exception {
@@ -151,7 +191,7 @@ public class Exec {
             System.out.println("Found existing NBPackage dir");
         } else {
             Files.createDirectory(nbpackageDir);
-            extractNBPackage(resource("nbpackage"), nbpackageDir);
+            extractArchive(resource("nbpackage"), "nbpackage*", nbpackageDir);
         }
         if (os.equals("windows")) {
             return nbpackageDir.resolve("bin").resolve("nbpackage.cmd");
@@ -162,9 +202,38 @@ public class Exec {
         }
     }
 
-    void extractNBPackage(Path zip, Path destination) throws IOException {
+    Path configureNetBeansSource() throws Exception {
+        Path sourceDir = workingDir.resolve(NETBEANS_SOURCE_DIR);
+        if (Files.exists(sourceDir)) {
+            System.out.println("Found existing NetBeans source dir");
+        } else {
+            Files.createDirectory(sourceDir);
+            System.out.println("Extracting NetBeans sources - this may take a while");
+            extractArchive(resource("netbeans.source"), "netbeans-*", sourceDir);
+        }
+        return sourceDir;
+    }
+
+    Path netbeansDistribution() {
+        Path dist = workingDir.resolve(NETBEANS_DIST_DIR);
+        if (!Files.isDirectory(dist)) {
+            throw new IllegalStateException(
+                    String.format("""
+
+                        No NetBeans distribution found in : %s
+                        Run `java Exec.java build-netbeans` to build NetBeans from source.
+                        """, dist));
+        }
+        return findFile(dist, "netbeans-*.zip");
+    }
+
+    /**
+     * Extract the single top-level directory of the archive that matches the
+     * given glob, copying its contents into the destination directory.
+     */
+    void extractArchive(Path zip, String glob, Path destination) throws IOException {
         try (FileSystem zipFS = FileSystems.newFileSystem(zip)) {
-            Path source = findFile(zipFS.getPath("/"), "nbpackage*");
+            Path source = findFile(zipFS.getPath("/"), glob);
             Files.walkFileTree(source, new SimpleFileVisitor<>() {
                 @Override
                 public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) throws IOException {
@@ -210,6 +279,50 @@ public class Exec {
         cmd.add("--output");
         cmd.add(dist.toString());
         return List.copyOf(cmd);
+    }
+
+    List<String> buildAntCommandLine(String clusterConfig, String version) {
+        List<String> cmd = new ArrayList<>();
+        cmd.add(antLauncher());
+        cmd.add("-quiet");
+        cmd.add("-Dcluster.config=" + clusterConfig);
+        // set explicitly - the default is derived from the VCS metadata that
+        // the source archive does not contain
+        cmd.add("-Dbuildnumber=" + version);
+        cmd.add("-Dbuildnum=" + version);
+        cmd.add("build");
+        return List.copyOf(cmd);
+    }
+
+    String antLauncher() {
+        String ant = System.getenv("ANT_PATH");
+        if (ant != null && !ant.isBlank()) {
+            return ant;
+        }
+        boolean windows = System.getProperty("os.name", "")
+                .toLowerCase(Locale.ROOT).contains("win");
+        String launcher = windows ? "ant.bat" : "ant";
+        String antHome = System.getenv("ANT_HOME");
+        if (antHome != null && !antHome.isBlank()) {
+            return Path.of(antHome).resolve("bin").resolve(launcher).toString();
+        }
+        return launcher;
+    }
+
+    void execute(List<String> cmd, Path directory) throws IOException, InterruptedException {
+        ProcessBuilder pb = new ProcessBuilder(cmd);
+        if (directory != null) {
+            pb.directory(directory.toFile());
+        }
+        pb.inheritIO();
+        int result = pb.start().waitFor();
+        if (result != 0) {
+            throw new IOException(String.format("""
+
+                Process exited with error code %d
+                Command : %s
+                """, result, cmd));
+        }
     }
 
     void processAndHashOutput(Path dist) throws IOException {
@@ -269,7 +382,8 @@ public class Exec {
                 type = args[3];
                 command = cmd;
             }
-            case COMMAND_VALIDATE, COMMAND_VALIDATE_DOWNLOADS, COMMAND_VALIDATE_CACHE -> {
+            case COMMAND_BUILD_NETBEANS, COMMAND_VALIDATE,
+                    COMMAND_VALIDATE_DOWNLOADS, COMMAND_VALIDATE_CACHE -> {
                 os = arch = type = null;
                 command = cmd;
             }
@@ -315,6 +429,10 @@ public class Exec {
             case COMMAND_BUILD -> {
                 exec.validate(false);
                 exec.build();
+            }
+            case COMMAND_BUILD_NETBEANS -> {
+                exec.validate(false);
+                exec.buildNetBeans();
             }
         }
 
