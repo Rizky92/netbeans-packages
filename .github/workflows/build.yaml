@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Validate release tag
@@ -55,7 +55,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup JDK
@@ -79,7 +79,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -113,7 +113,7 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup JDK
@@ -122,7 +122,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -156,7 +156,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup JDK
@@ -165,7 +165,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -201,7 +201,7 @@ jobs:
     runs-on: windows-2022
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup JDK
@@ -210,7 +210,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -221,7 +221,7 @@ jobs:
         run: java Exec.java build windows x64 innosetup
       - name: Azure Artifact Signing
         if: ${{ vars.AZURE_CERT_PROFILE_NAME }}
-        uses: azure/artifact-signing-action@87c2e83e6868da99d3380aa309851b32ed9a8346 # v1.1.0
+        uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -273,7 +273,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup JDK
@@ -282,7 +282,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
@@ -343,7 +343,7 @@ jobs:
         shell: bash
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup JDK
@@ -352,7 +352,7 @@ jobs:
           java-version: 21
           distribution: 'temurin'
       - name: Setup caches
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: cache
           key: ${{ hashFiles('Exec.java', 'build.properties') }}
